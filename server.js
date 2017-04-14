@@ -1,18 +1,19 @@
+/*jshint esversion: 6 */
+
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
+const bodyParser = require('body-parser');
+const _ = require('lodash');
 
 const { Users } = require('./utils/user');
-const port = process.env.PORT || 3004;
+const port = process.env.PORT || 6000;
 var app = express();
 var server = http.createServer(app);
 var io = socketIO(server);
 var users = new Users();
 
-var io_client = require('socket.io-client')
-var socket_client = io_client.connect('http://localhost:3003', { reconnect: true });
-
-
+app.use(bodyParser.json());
 
 //to everyone in the room
 //io.to(params.room).emit();
@@ -41,34 +42,22 @@ io.on('connection', (socket) => {
     });
 });
 
+app.post('/global', (req, res) => {
 
-socket_client.emit('join', function (error) {
-    if (error) {
-        console.log(error);
-    }
-    console.log("joined to statservice successfully");
+    var body = _.pick(req.body, ['data']);
+    io.to("global").emit('global', body.data);
+    res.sendStatus(200);
 });
 
-socket_client.on('global', function (globalTop5) {
-    // io.to(global).emit('global', /*list of top 5 globally*/ globalTop5);
-    console.log("GLOBAL LIST:"+"/n/n")
-    console.log("got this:", globalTop5);
-      console.log("/n/n")
+app.post('/room/:room', (req, res) => {
+
+    var room = req.params.room;
+    var body = _.pick(req.body, ['data']);
+    io.to(room).emit("local", body.data);
+    res.sendStatus(200);
 });
-
-socket_client.on('local', function (country, localTop5) {
-    //country is the "room" where I emit to all the users.  and local is one of the channels the client is listening on.
-    //io.to(country).emit("local", localTop5);
-
-      console.log("LOCAL LIST:"+"/n/n")
-    console.log("got this:",  country,localTop5);
-      console.log("/n/n")
-});
-
-
 
 
 server.listen(port, () => {
     console.log(`Server is up on port ${port}!`);
-    console.log(socket_client.connected);
 });
