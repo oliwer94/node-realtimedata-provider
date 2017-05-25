@@ -34,27 +34,29 @@ app.use(function (req, res, next) {
 io.on('connection', (socket) => {
     console.log('New user connected');
 
-    socket.on('join', (room, callback) => {
+    socket.on('join', (params, callback) => {
 
         //country or region ranking live feed
-        socket.join(room.toLowerCase());
-        console.log(socket.id, room);
+        socket.join(params.room.toLowerCase());
+        console.log(params.name, socket.id, params.room);
 
         //global live feed
         socket.join("global");
 
         users.removeUser(socket.id);
-        users.adduser(socket.id, room.toLowerCase());
+        users.adduser(socket.id, params.name, params.room.toLowerCase());
 
         callback();
     });
 
     socket.on('disconnect', () => {
         var user = users.removeUser(socket.id);
+        console.log(socket.id + " disconnected");
+        if (user != undefined && user.name) {
+            io.sockets.emit('users_count', user.name);
+        }
     });
 });
-
-
 
 app.get('/getCountry', function (req, res) {
 
@@ -65,23 +67,64 @@ app.get('/getCountry', function (req, res) {
 });
 
 app.post('/global', (req, res) => {
-
     var body = _.pick(req.body, ['data']);
     io.to("global").emit('global', body.data);
     res.sendStatus(200);
 });
 
-app.post('/friends', (req, res) => {
 
-    var body = _.pick(req.body, ['username', 'data']);
-    users.array.forEach(function (element) {
-        if (body.data.includes(element.name)) {
-            io.sockets.socket(element.id).emit("onlineFriends",body.username);
+app.post('/notification', (req, res) => {
+
+    var body = _.pick(req.body, ['notification', 'username']);
+    var notification = body.notification;
+    var onlineUsers = users.users.map(user => user);
+    onlineUsers.forEach(function (element) {
+        if (body.username === element.name) {
+            io.sockets.connected[element.id].emit("notification", notification);
         }
     }, this);
-
     res.sendStatus(200);
 });
+
+app.post('/getFriends', (req, res) => {
+    var body = _.pick(req.body, ['friends']);
+
+    var onlineFriends = [];
+    var onlineUsers = users.users.map(user => user.name);
+
+    body.friends.forEach((element) => {
+        if (onlineUsers.includes(element)) {
+            onlineFriends.push(element)
+        }
+    });
+
+    res.send({ onlineFriends });
+});
+
+app.post('/friends', (req, res) => {
+
+    var body = _.pick(req.body, ['username', 'friends']);
+    var onlineUsers = users.users.map(user => user);
+    onlineUsers.forEach(function (element) {
+        if (body.friends.includes(element.name)) {
+            io.sockets.connected[element.id].emit("onlineFriend", body.username);
+        }
+    }, this);
+    res.sendStatus(200);
+});
+
+app.post('/offlinefriend', (req, res) => {
+
+    var body = _.pick(req.body, ['username', 'friends']);
+    var onlineUsers = users.users.map(user => user);
+    onlineUsers.forEach(function (element) {
+        if (body.friends.includes(element.name)) {
+            io.sockets.connected[element.id].emit("offlineFriend", body.username);
+        }
+    }, this);
+    res.sendStatus(200);
+});
+
 
 app.post('/sent-friendrequest', (req, res) => {
 
@@ -107,9 +150,6 @@ app.post('/room/:room', (req, res) => {
     io.to(room.toLowerCase()).emit("local", body.data);
     res.sendStatus(200);
 });
-
-
-
 
 app.get('/ping', (req, res) => {
     res.send("realtime date provider is up and running");

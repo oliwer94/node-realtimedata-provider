@@ -13,7 +13,7 @@ class Users
 
     adduser(id,name,room)
     {
-        var user ={id,room};
+        var user ={id,name,room};
         this.users.push(user);
         return user;
     }
