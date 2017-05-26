@@ -44,6 +44,7 @@ io.on('connection', (socket) => {
         socket.join("global");
 
         users.removeUser(socket.id);
+        users.removeUserByName(socket.id);
         users.adduser(socket.id, params.name, params.room.toLowerCase());
 
         callback();
