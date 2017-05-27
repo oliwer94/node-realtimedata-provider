@@ -73,6 +73,10 @@ app.post('/global', (req, res) => {
     res.sendStatus(200);
 });
 
+app.get('/allCon', (req, res) => {
+    res.send(users);
+});
+
 
 app.post('/notification', (req, res) => {
 
